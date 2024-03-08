@@ -11,20 +11,21 @@ import (
 
 var (
 	// Define metrics for speed test results.
-	downloadSpeed = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	downloadSpeed = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "internet_download_speed_mbps",
 		Help: "Current Internet download speed in Mbps",
-	}, []string{"host"})
+	})
 
-	uploadSpeed = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	uploadSpeed = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "internet_upload_speed_mbps",
 		Help: "Current Internet upload speed in Mbps",
-	}, []string{"host"})
+	})
 
-	latency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	latency = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "internet_latency_ms",
 		Help: "Current Internet latency in milliseconds",
-	}, []string{"host"})
+	})
+	server_id = "21016" // Starry Internet Speedtest server
 )
 
 func init() {
@@ -36,29 +37,25 @@ func init() {
 
 func performSpeedTest() {
 	var speedtestClient = speedtest.New()
-	serverList, err := speedtestClient.FetchServers()
+
+	// Fetch the specific server by ID
+	server, err := speedtestClient.FetchServerByID(server_id)
 	if err != nil {
-		fmt.Printf("Error fetching server list: %v\n", err)
-		return
-	}
-	targets, err := serverList.FindServer([]int{})
-	if err != nil {
-		fmt.Printf("Error finding server: %v\n", err)
+		fmt.Printf("Error fetching server by ID: %v\n", err)
 		return
 	}
 
-	for _, s := range targets {
-		s.PingTest(nil)
-		s.DownloadTest()
-		s.UploadTest()
+	// Perform the speed test on the specific server
+	server.PingTest(nil)
+	server.DownloadTest()
+	server.UploadTest()
 
-		// Set metrics values based on the speed test results.
-		downloadSpeed.WithLabelValues(s.Host).Set(s.DLSpeed)
-		uploadSpeed.WithLabelValues(s.Host).Set(s.ULSpeed)
-		latency.WithLabelValues(s.Host).Set(float64(s.Latency.Milliseconds()))
-		s.Context.Reset() // Reset counter after each test
-		break             // Perform the test with the first server and stop
-	}
+	// Set metrics values based on the speed test results.
+	downloadSpeed.Set(server.DLSpeed)
+	uploadSpeed.Set(server.ULSpeed)
+	latency.Set(float64(server.Latency.Milliseconds()))
+
+	server.Context.Reset() // Reset counter after the test
 }
 
 func metricsHandler(w http.ResponseWriter, r *http.Request) {
