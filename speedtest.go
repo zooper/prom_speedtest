@@ -11,14 +11,16 @@ import (
 
 var (
 	// Define metrics for speed test results.
-	downloadSpeed = prometheus.NewGauge(prometheus.GaugeOpts{
+	downloadSpeed = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "internet_download_speed_mbps",
 		Help: "Current Internet download speed in Mbps",
-	})
-	uploadSpeed = prometheus.NewGauge(prometheus.GaugeOpts{
+	}, []string{"host"})
+
+	uploadSpeed = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "internet_upload_speed_mbps",
 		Help: "Current Internet upload speed in Mbps",
-	})
+	}, []string{"host"})
+
 	latency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "internet_latency_ms",
 		Help: "Current Internet latency in milliseconds",
@@ -51,8 +53,8 @@ func performSpeedTest() {
 		s.UploadTest()
 
 		// Set metrics values based on the speed test results.
-		downloadSpeed.Set(s.DLSpeed)
-		uploadSpeed.Set(s.ULSpeed)
+		downloadSpeed.WithLabelValues(s.Host).Set(s.DLSpeed)
+		uploadSpeed.WithLabelValues(s.Host).Set(s.ULSpeed)
 		latency.WithLabelValues(s.Host).Set(float64(s.Latency.Milliseconds()))
 		s.Context.Reset() // Reset counter after each test
 		break             // Perform the test with the first server and stop
